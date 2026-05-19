@@ -21,6 +21,7 @@ dist-ssr/
 # --- editors ---
 .vscode/
 .idea/
+.claude/
 *.swp
 
 # --- os ---
