@@ -476,8 +476,8 @@ body {
 }
 
 .brand-logo {
-  max-width: 95vw;
-  max-height: 95vh;
+  max-width: 115vw;
+  max-height: 115vh;
   width: auto;
   height: auto;
   object-fit: contain;
