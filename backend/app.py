@@ -1,4 +1,5 @@
 import os
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
@@ -110,6 +111,56 @@ def format_grace(seconds: int) -> str:
     return f"{seconds}s grace"
 
 
+def fetch_pings(check_uuid: str):
+    """Fetch recent pings for a single check. Returns list (newest first) or []."""
+    if not check_uuid:
+        return []
+    try:
+        res = requests.get(
+            f"https://healthchecks.io/api/v3/checks/{check_uuid}/pings/",
+            headers={"X-Api-Key": API_KEY},
+            timeout=8,
+        )
+        if res.status_code != 200:
+            return []
+        return res.json().get("pings", [])
+    except Exception:
+        return []
+
+
+def compute_streak_and_uptime(pings):
+    """From a ping list (newest first), compute current success streak + uptime %.
+
+    Only 'success' and 'fail' pings count as completion events. 'start', 'log',
+    and 'ign' are skipped. Streak = consecutive successes from most recent.
+    Uptime = success / (success + fail) across the window.
+    """
+    streak = 0
+    streak_done = False
+    successes = 0
+    fails = 0
+
+    for p in pings:
+        kind = p.get("type")
+        if kind not in ("success", "fail"):
+            continue
+
+        if not streak_done:
+            if kind == "success":
+                streak += 1
+            else:
+                streak_done = True
+
+        if kind == "success":
+            successes += 1
+        else:
+            fails += 1
+
+    total = successes + fails
+    uptime = round((successes / total) * 100, 1) if total else None
+    return streak, uptime, total
+
+
 @app.get("/")
 def root():
     return {"status": "running"}
@@ -128,7 +179,16 @@ def get_checks():
         data = res.json()
         now = datetime.now(timezone.utc)
 
-        for check in data.get("checks", []):
+        all_checks = data.get("checks", [])
+
+        # Parallel-fetch ping history for every check so streak + uptime stay fresh
+        # without serializing N HTTP round-trips.
+        uuids = [c.get("uuid") for c in all_checks]
+        with ThreadPoolExecutor(max_workers=min(16, max(1, len(uuids)))) as pool:
+            ping_lists = list(pool.map(fetch_pings, uuids))
+        pings_by_uuid = dict(zip(uuids, ping_lists))
+
+        for check in all_checks:
 
             # -----------------------------------
             # PARSE TIMESTAMPS
@@ -186,8 +246,8 @@ def get_checks():
             hc_status = check.get("status", "unknown")
             check["runtime_status"] = {
                 "up": "HEALTHY",
-                "grace": "DELAYED",
-                "down": "DEAD",
+                "grace": "MISSED",
+                "down": "MISSED",
                 "paused": "PAUSED",
                 "new": "NEW",
             }.get(hc_status, "UNKNOWN")
@@ -204,6 +264,16 @@ def get_checks():
                 check["period_label"] = ""
 
             check["grace_label"] = format_grace(grace)
+
+            # -----------------------------------
+            # STREAK + UPTIME (from ping history)
+            # -----------------------------------
+            streak, uptime, sample_size = compute_streak_and_uptime(
+                pings_by_uuid.get(check.get("uuid"), [])
+            )
+            check["streak"] = streak
+            check["uptime"] = uptime
+            check["uptime_sample"] = sample_size
 
             # -----------------------------------
             # MISC
