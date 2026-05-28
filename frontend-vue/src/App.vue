@@ -2,9 +2,24 @@
 import { computed, onMounted, ref } from 'vue'
 
 const API_URL = `${import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'}/checks`
+const BASE_URL = import.meta.env.BASE_URL
+
+const DASHBOARD_MS = 60_000   // 1 minute on the dashboard
+const LOGO_MS = 10_000        // 10 seconds on the logo screen
 
 const checks = ref([])
 const now = ref(new Date())
+const screen = ref('dashboard')
+
+function flipScreen() {
+  if (screen.value === 'dashboard') {
+    screen.value = 'logo'
+    setTimeout(flipScreen, LOGO_MS)
+  } else {
+    screen.value = 'dashboard'
+    setTimeout(flipScreen, DASHBOARD_MS)
+  }
+}
 
 async function loadChecks() {
   try {
@@ -20,6 +35,7 @@ onMounted(() => {
   loadChecks()
   setInterval(loadChecks, 30000)
   setInterval(() => { now.value = new Date() }, 1000)
+  setTimeout(flipScreen, DASHBOARD_MS)
 })
 
 const sortedChecks = computed(() => {
@@ -86,7 +102,9 @@ function formatUptime(pct) {
 </script>
 
 <template>
-  <div class="dashboard">
+  <Transition name="fade" mode="out-in">
+
+  <div v-if="screen === 'dashboard'" class="dashboard">
 
     <header class="topbar">
       <div class="brand">
@@ -165,6 +183,12 @@ function formatUptime(pct) {
     </section>
 
   </div>
+
+  <div v-else class="logo-screen">
+    <img :src="`${BASE_URL}LFX_Group.png`" alt="LFX Group" class="brand-logo" />
+  </div>
+
+  </Transition>
 </template>
 
 <style>
@@ -439,5 +463,35 @@ body {
   letter-spacing: 0.01em;
   line-height: 1;
   white-space: nowrap;
+}
+
+/* ───────────────────── Logo screen ───────────────────── */
+
+.logo-screen {
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.brand-logo {
+  max-width: 60vw;
+  max-height: 60vh;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+}
+
+/* ───────────────────── Slide transition ───────────────────── */
+
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.7s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
 }
 </style>
