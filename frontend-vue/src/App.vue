@@ -476,8 +476,8 @@ body {
 }
 
 .brand-logo {
-  width: 95vw;
-  height: 95vh;
+  width: 45vw;
+  height: 45vh;
   object-fit: contain;
 }
 
