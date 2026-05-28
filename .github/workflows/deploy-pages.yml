@@ -29,7 +29,10 @@ jobs:
           cache: npm
           cache-dependency-path: frontend-vue/package-lock.json
 
-      - run: npm ci
+      # `npm install` (not `npm ci`) so the build tolerates platform-
+      # specific optional deps that get pruned from the lock file when
+      # contributors run npm on Windows vs Linux.
+      - run: npm install --no-audit --no-fund
 
       - name: Build
         env:
