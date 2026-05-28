@@ -137,7 +137,6 @@ function formatUptime(pct) {
           <div class="c-name">
             <span class="name">{{ check.name }}</span>
             <span v-if="check.period_label" class="schedule">{{ check.period_label }}</span>
-            <span v-if="check.desc" class="desc">{{ check.desc }}</span>
           </div>
 
           <div class="c-num c-streak" :class="streakClass(check.streak)">
@@ -381,17 +380,6 @@ body {
   line-height: 1;
   white-space: nowrap;
   flex-shrink: 0;
-}
-
-.desc {
-  font-size: clamp(0.7rem, 1.5cqh, 0.95rem);
-  color: #64748b;
-  line-height: 1;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  flex-shrink: 1;
-  min-width: 0;
 }
 
 /* ───────────────────── Numeric columns ─────────────────────
