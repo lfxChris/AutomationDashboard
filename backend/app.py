@@ -90,6 +90,50 @@ def format_period(seconds: int) -> str:
     return f"every {seconds}s"
 
 
+DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
+
+
+def humanize_cron(expr: str) -> str:
+    """Render common cron patterns as English. Falls back to the raw expression
+    when the schedule is too irregular to summarise (specific dates, step
+    ranges in minute/hour, etc.)."""
+    parts = expr.split()
+    if len(parts) != 5:
+        return expr
+    minute, hour, dom, month, dow = parts
+
+    # Anything constrained to a specific calendar date is too varied to humanise.
+    if dom != "*" or month != "*":
+        return expr
+
+    if dow == "*":
+        return "every day"
+
+    if dow == "1-5":
+        return "every weekday"
+
+    if dow in ("0,6", "6,0", "0,7", "7,0", "6,7"):
+        return "every weekend"
+
+    # Single day-of-week (0 or 7 = Sunday).
+    try:
+        d = int(dow)
+        if 0 <= d <= 7:
+            return f"every {DAY_NAMES[d % 7]}"
+    except ValueError:
+        pass
+
+    # Comma-separated list of single days, e.g. "1,3,5" → "every Monday, Wednesday, Friday".
+    if "," in dow:
+        try:
+            days = [DAY_NAMES[int(p) % 7] for p in dow.split(",")]
+            return "every " + ", ".join(days)
+        except ValueError:
+            pass
+
+    return expr
+
+
 def format_grace(seconds: int) -> str:
     if seconds <= 0:
         return ""
@@ -257,7 +301,7 @@ def get_checks():
             # -----------------------------------
             schedule = check.get("schedule")
             if schedule and schedule != "* * * * *":
-                check["period_label"] = schedule
+                check["period_label"] = humanize_cron(schedule)
             elif period:
                 check["period_label"] = format_period(period)
             else:

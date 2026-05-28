@@ -5,7 +5,7 @@ const API_URL = `${import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'}/chec
 const BASE_URL = import.meta.env.BASE_URL
 
 const DASHBOARD_MS = 60_000   // 1 minute on the dashboard
-const LOGO_MS = 10_000        // 10 seconds on the logo screen
+const LOGO_MS = 60_000        // 1 minute on the logo screen
 
 const checks = ref([])
 const now = ref(new Date())
@@ -476,8 +476,8 @@ body {
 }
 
 .brand-logo {
-  max-width: 60vw;
-  max-height: 60vh;
+  max-width: 85vw;
+  max-height: 85vh;
   width: auto;
   height: auto;
   object-fit: contain;
